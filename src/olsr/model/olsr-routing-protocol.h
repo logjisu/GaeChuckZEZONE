@@ -240,12 +240,16 @@ class RoutingProtocol : public Ipv4RoutingProtocol
      * \returns the internal HNA table
      */
     Ptr<const Ipv4StaticRouting> GetRoutingTableAssociation() const;
-
+    // bool Lookup(const Ipv4Address& dest, RoutingTableEntry& outEntry) const;
+    // std::map<Ipv4Address, RoutingTableEntry> m_table; //!< Data structure for the routing table.
+    // void DoInitialize() override;
+    // void DoDispose() override;
   protected:
     void DoInitialize() override;
     void DoDispose() override;
 
   private:
+    friend class ZrpRoutingProtocol;
     std::map<Ipv4Address, RoutingTableEntry> m_table; //!< Data structure for the routing table.
 
     Ptr<Ipv4StaticRouting> m_hnaRoutingTable; //!< Routing table for HNA routes
@@ -358,7 +362,7 @@ class RoutingProtocol : public Ipv4RoutingProtocol
 
     void PrintRoutingTable(Ptr<OutputStreamWrapper> stream,
                            Time::Unit unit = Time::S) const override;
-
+    // void RoutingTableComputation();
   private:
     void NotifyInterfaceUp(uint32_t interface) override;
     void NotifyInterfaceDown(uint32_t interface) override;
@@ -421,6 +425,10 @@ class RoutingProtocol : public Ipv4RoutingProtocol
     void TcTimerExpire();
     void Receive(Ptr<Packet> packet, const Address &from); // 패킷 수신 메서드
 
+    // void SendHello();
+    // void SendTc();
+    // void SendMid();
+    // void SendHna();
   private:
     /**
      * \brief Tests whether or not the specified route uses a non-OLSR outgoing interface.

@@ -418,6 +418,7 @@ RoutingProtocol::RouteOutput(Ptr<Packet> p,
                              Ptr<NetDevice> oif,
                              Socket::SocketErrno& sockerr)
 {
+    NS_LOG_INFO("AODV를 사용");
     NS_LOG_FUNCTION(this << header << (oif ? oif->GetIfIndex() : 0));
     if (!p)
     {
@@ -499,6 +500,7 @@ RoutingProtocol::RouteInput(Ptr<const Packet> p,
                             const LocalDeliverCallback& lcb,
                             const ErrorCallback& ecb)
 {
+    NS_LOG_INFO("AODV를 사용: " << p->GetUid() << "\t목적지: " << header.GetDestination() << "\t주소: " << idev->GetAddress());
     NS_LOG_FUNCTION(this << p->GetUid() << header.GetDestination() << idev->GetAddress());
     if (m_socketAddresses.empty())
     {

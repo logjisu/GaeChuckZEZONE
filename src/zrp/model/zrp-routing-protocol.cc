@@ -4,6 +4,8 @@
 #include "ns3/simulator.h"
 #include "ns3/socket-factory.h"
 #include "ns3/inet-socket-address.h"
+#include "ns3/olsr-routing-protocol.h"
+#include "ns3/olsr-helper.h"
 
 namespace ns3 {
 
@@ -36,7 +38,7 @@ void ZrpRoutingProtocol::SetZoneRadius (uint32_t zoneRadius) {
 void ZrpRoutingProtocol::SetIpv4 (Ptr<Ipv4> ipv4){
 
   m_ipv4 = ipv4;
-  m_olsr->SetIpv4(ipv4); // OLSR에 IPv4 설정
+  m_olsr->SetIpv4(ipv4);
   m_aodv->SetIpv4(ipv4);
   UpdateRoutingTable ();
 
@@ -47,7 +49,6 @@ void ZrpRoutingProtocol::Setup (Ptr<Ipv4> ipv4, NodeContainer nodes, uint32_t zo
   m_ipv4 = ipv4;
   m_nodes = nodes;
   m_zoneRadius = zoneRadius;
-
   UpdateRoutingTable ();
 
 }
@@ -80,23 +81,43 @@ Ptr<Ipv4Route> ZrpRoutingProtocol::RouteOutput (Ptr<Packet> p, const Ipv4Header 
 
   Ipv4Address dest = header.GetDestination ();
 
+  uint32_t hopCount = CalculateHopDistance(dest);
+
+  if (hopCount <= m_zoneRadius){
+    NS_LOG_INFO("OLSR를 사용하겠습니다: " << dest);
+    return m_olsr->RouteOutput(p, header, oif, sockerr); 
+  }
+  else{
+    NS_LOG_INFO("AODV를 사용하겠습니다: " << dest);
+    return m_aodv->RouteOutput(p, header, oif, sockerr); 
+  }
+
   auto it = m_routingTable.find (GetNetworkAddress (dest));
 
   if (it != m_routingTable.end ()){
     NS_LOG_INFO ("Proactive route found for destination " << dest << "\n");
     return it->second;
-
   }
 
   sockerr = Socket::ERROR_NOROUTETOHOST;
   NS_LOG_INFO ("Reactive routing for destination " << dest << "\n");
   return nullptr;
-
 }
 
 bool ZrpRoutingProtocol::RouteInput (Ptr<const Packet> p, const Ipv4Header &header, Ptr<const NetDevice> idev, const UnicastForwardCallback& ucb, const MulticastForwardCallback& mcb, const LocalDeliverCallback& lcb, const ErrorCallback& ecb){
 
   Ipv4Address dest = header.GetDestination ();
+
+  uint32_t hopCount = CalculateHopDistance(dest);
+
+  if (hopCount <= m_zoneRadius){
+    NS_LOG_INFO("OLSR를 사용하겠습니다: " << dest << " (홉 수: " << hopCount << ")");
+    return m_olsr->RouteInput(p, header, idev, ucb, mcb, lcb, ecb);
+  }
+  else{
+    NS_LOG_INFO("AODV를 사용하겠습니다: " << dest << " (홉 수: " << hopCount << ")");
+    return m_aodv->RouteInput(p, header, idev, ucb, mcb, lcb, ecb);
+  }
 
   auto it = m_routingTable.find (GetNetworkAddress (dest));
 
@@ -105,26 +126,34 @@ bool ZrpRoutingProtocol::RouteInput (Ptr<const Packet> p, const Ipv4Header &head
     Ptr<Ipv4Route> route = it->second;
 
     if (route->GetOutputDevice () == idev){
-
       lcb (p, header, m_ipv4->GetInterfaceForDevice(idev));
-
       return true;
-
     }
     else{
-
       ucb (route, p, header);
-
       return true;
-
     }
-
   }
 
   ecb (p, header, Socket::ERROR_NOROUTETOHOST);
 
   return false;
+}
 
+uint32_t ZrpRoutingProtocol::CalculateHopDistance (Ipv4Address dest){
+
+  std::vector<olsr::RoutingTableEntry> entries = m_olsr->GetRoutingTableEntries();
+  
+  for (const auto& entry : entries) {
+    NS_LOG_INFO("OLSR 경로 발견: 목적지 = " << entry.destAddr << ", 거리 = " << entry.distance);
+    if (entry.destAddr == dest) {
+      return entry.distance;
+    }
+  }
+  
+  // 경로를 찾지 못한 경우
+  NS_LOG_WARN("OLSR 라우팅 테이블에서 목적지 " << dest << "를 찾을 수 없습니다.");
+  return m_zoneRadius + 1; // 최대 값 +1 반환하여 AODV로 처리
 }
 
 void ZrpRoutingProtocol::PrintRoutingTable (Ptr<OutputStreamWrapper> stream, Time::Unit unit) const{
@@ -165,6 +194,11 @@ void ZrpRoutingProtocol::UpdateRoutingTable (){
 
   m_routingTable.clear ();
 
+  // m_olsr->SendHello();
+  // m_olsr->SendTc();
+  // m_olsr->SendMid();
+  // m_olsr->SendHna();
+  //m_olsr->RoutingTableComputation();
   for (uint32_t i = 0; i < m_ipv4->GetNInterfaces (); ++i){
 
     for (uint32_t j = 0; j < m_ipv4->GetNAddresses (i); ++j){
@@ -189,6 +223,7 @@ void ZrpRoutingProtocol::UpdateRoutingTable (){
 void ZrpRoutingProtocol::SendIarpMessages (){
 
   // Implement IARP message sending logic here
+  NS_LOG_INFO("IARP 메시지 전송 시작");
   m_olsr->HelloTimerExpire();
   m_olsr->TcTimerExpire();
 
@@ -200,6 +235,8 @@ void ZrpRoutingProtocol::HandleIarpMessages (Ptr<Socket> socket){
   Ptr<Packet> packet;
   Address from;
   packet = socket->RecvFrom(from);
+  // OLSR에서 메시지 처리
+  NS_LOG_INFO("IARP 메시지 수신: " << from);
   m_olsr->Receive(packet, from);
 
 }

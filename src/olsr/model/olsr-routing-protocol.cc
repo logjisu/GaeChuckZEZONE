@@ -329,7 +329,7 @@ RoutingProtocol::PrintRoutingTable(Ptr<OutputStreamWrapper> stream, Time::Unit u
     // Copy the current ostream state
     std::ios oldState(nullptr);
     oldState.copyfmt(*os);
-
+    
     *os << std::resetiosflags(std::ios::adjustfield) << std::setiosflags(std::ios::left);
 
     *os << "Node: " << m_ipv4->GetObject<Node>()->GetId() << ", Time: " << Now().As(unit)
@@ -1019,7 +1019,7 @@ RoutingProtocol::RoutingTableComputation()
 {
     NS_LOG_DEBUG(Simulator::Now().As(Time::S)
                  << " : Node " << m_mainAddress << ": RoutingTableComputation begin...");
-
+    //NS_LOG_INFO("너무 짜요!");
     // 1. All the entries from the routing table are removed.
     Clear();
 
@@ -2876,6 +2876,7 @@ RoutingProtocol::RouteOutput(Ptr<Packet> p,
                              Ptr<NetDevice> oif,
                              Socket::SocketErrno& sockerr)
 {
+    NS_LOG_INFO("OLSR를 사용");
     NS_LOG_FUNCTION(this << " " << m_ipv4->GetObject<Node>()->GetId() << " "
                          << header.GetDestination() << " " << oif);
     Ptr<Ipv4Route> rtentry;
@@ -2967,6 +2968,7 @@ RoutingProtocol::RouteInput(Ptr<const Packet> p,
                             const LocalDeliverCallback& lcb,
                             const ErrorCallback& ecb)
 {
+    NS_LOG_INFO("OLSR를 사용: " << p->GetUid() << "\t목적지: " << header.GetDestination() << "\t주소: " << idev->GetAddress());
     NS_LOG_FUNCTION(this << " " << m_ipv4->GetObject<Node>()->GetId() << " "
                          << header.GetDestination());
 

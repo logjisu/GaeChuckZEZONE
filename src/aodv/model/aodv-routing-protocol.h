@@ -202,7 +202,7 @@ class RoutingProtocol : public Ipv4RoutingProtocol
      * \return the number of stream indices assigned by this model
      */
     int64_t AssignStreams(int64_t stream);
-
+    //void DoInitialize() override;
   protected:
     void DoInitialize() override;
 
